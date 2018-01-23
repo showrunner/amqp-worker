@@ -9,12 +9,15 @@ const LISTEN_OPTS_SYM = Symbol('listenOpts')
 const CONSUME_OPTS_SYM = Symbol('consumeOpts')
 
 class QueueWorker {
-  constructor () {
+  constructor (host, port) {
     this.connection = void 0
     this.channel = void 0
     this.queue = ''
 
-    this[HOST_SYM] = `amqp://${rabbitMQHost}:${rabbitMQPort}/`
+    this.host = host || rabbitMQHost
+    this.port = port || rabbitMQPort
+
+    this[HOST_SYM] = `amqp://${this.host}:${this.port}/`
     this[LISTENING_SYM] = false
     this[LISTEN_OPTS_SYM] = {
       durable: true
@@ -27,7 +30,7 @@ class QueueWorker {
       try {
         this.connection = await amqp.connect(this._host)
       } catch (err) {
-        this._handleError(err)
+        return this._handleError(err)
       }
     }
 
@@ -70,7 +73,11 @@ class QueueWorker {
     }
 
     if (typeof this.messageHandler !== 'function') {
-      throw new Error('You must implement this.handler')
+      throw new Error('You must implement this.messageHandler')
+    }
+
+    if (typeof this.queue !== 'string' || this.queue.length < 1) {
+      throw new Error('You must specify a queue with this.queue')
     }
 
     listenOpts = Object.assign({}, this[LISTEN_OPTS_SYM], listenOpts)
@@ -78,12 +85,16 @@ class QueueWorker {
 
     await this.getChannel()
     await this.channel.assertQueue(this.queue, listenOpts)
-    return this.channel.consume(this.queue, this.handler, consumeOpts)
+    const listening = await this.channel.consume(this.queue, this.handler, consumeOpts)
+    this[LISTENING_SYM] = true
+    return listening
   }
 
   _handleError (err) {
     if (typeof this.handleError === 'function') {
       this.handleError(err)
+    } else {
+      throw err
     }
   }
 }

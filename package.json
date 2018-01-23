@@ -1,5 +1,5 @@
 {
-  "name": "@scriptollc/queue-worker",
+  "name": "@scriptollc/amqp-worker",
   "version": "1.0.0",
   "description": "Class for creating AMQP connections",
   "main": "queue-worker.js",
@@ -12,9 +12,9 @@
     "type": "git",
     "url": "git+https://github.com/scriptoLLC/queue-worker.git"
   },
-  "keywords": [],
+  "keywords": ["rabbitmq", "amqp", "queue", "queue worker", "worker", "amqplib"],
   "author": "Todd Kennedy <todd@selfassembled.org>",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/scriptoLLC/queue-worker/issues"
   },

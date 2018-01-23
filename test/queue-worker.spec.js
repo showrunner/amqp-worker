@@ -1,8 +1,9 @@
 const test = require('tap').test
+const Events = require('events')
 const proxyquire = require('proxyquire')
 
 const channelProxy = {
-  close () {},
+  async close () {},
   async assertQueue (queue, listener) {},
   async consume (queue, handler, opts) {}
 }
@@ -12,7 +13,7 @@ const connectProxy = {
     return new Promise((resolve) => resolve(channelProxy))
   },
   on () {},
-  close () {}
+  async close () {}
 }
 
 const rabbitProxy = {
@@ -23,10 +24,268 @@ const rabbitProxy = {
 
 const QueueWorker = proxyquire('../', {amqplib: rabbitProxy})
 
+test('failed connection', async (t) => {
+  t.plan(1)
+  const oldConnect = rabbitProxy.connect
+  rabbitProxy.connect = async function () {
+    return new Promise((resolve, reject) => {
+      rabbitProxy.connect = oldConnect
+      reject(new Error('foobar'))
+    })
+  }
+
+  const worker = new QueueWorker()
+  worker.handleError = () => t.pass('should have handled error')
+  await worker.initialize()
+}).catch(test.threw)
+
+test('override host/port', async (t) => {
+  const worker = new QueueWorker('localhost', 5672)
+  worker.handleError = () => t.fail('should have no errors')
+  await worker.initialize()
+  t.pass('zero errors')
+  t.end()
+}).catch(test.threw)
+
 test('connection', async (t) => {
   const worker = new QueueWorker()
   worker.handleError = () => t.fail('should have no errors')
   await worker.initialize()
   t.pass('zero errors')
   t.end()
+}).catch(test.threw)
+
+test('connection but i got one', async (t) => {
+  const oldConnect = rabbitProxy.connect
+  let _count = 0
+  rabbitProxy.connect = async function () {
+    _count++
+    rabbitProxy.connect = oldConnect
+    return new Promise((resolve) => {
+      resolve(connectProxy)
+    })
+  }
+  const worker = new QueueWorker()
+  worker.handleError = () => t.fail('should have no errors')
+  await worker.initialize()
+  t.equal(_count, 1, 'should i have one')
+  await worker.initialize()
+  t.equal(_count, 1, 'should be one still')
+  t.end()
+}).catch(test.threw)
+
+test('connection error handler', async (t) => {
+  t.plan(1)
+  const emitter = new Events()
+  const oldOn = connectProxy.on
+  connectProxy.on = (evt, handle) => {
+    connectProxy.on = oldOn
+    emitter.on(evt, handle)
+  }
+
+  const worker = new QueueWorker()
+  worker.handleError = (err) => t.equal(err.message, 'foo', 'error handled')
+  await worker.initialize()
+  emitter.emit('error', new Error('foo'))
+}).catch(test.threw)
+
+test('no error handler', async (t) => {
+  t.plan(1)
+  const emitter = new Events()
+  const oldOn = connectProxy.on
+  connectProxy.on = (evt, handle) => {
+    connectProxy.on = oldOn
+    emitter.on(evt, handle)
+  }
+
+  const worker = new QueueWorker()
+  await worker.initialize()
+  try {
+    emitter.emit('error', new Error('foo'))
+  } catch (err) {
+    t.equal(err.message, 'foo')
+  }
+}).catch(test.threw)
+
+test('get channel no init', async (t) => {
+  const worker = new QueueWorker()
+  worker.handleError = () => t.fail('no errars')
+  await worker.getChannel()
+  t.pass('connected and got channel')
+  t.end()
+}).catch(test.threw)
+
+test('get channel', async (t) => {
+  const worker = new QueueWorker()
+  worker.handleError = () => t.fail('no errars')
+  await worker.initialize()
+  await worker.getChannel()
+  t.pass('connected and got channel')
+  t.end()
+}).catch(test.threw)
+
+test('get channel with an error', async (t) => {
+  t.plan(1)
+
+  const oldCreate = connectProxy.createChannel
+  connectProxy.createChannel = async function () {
+    return new Promise((resolve, reject) => {
+      connectProxy.createChannel = oldCreate
+      reject(new Error('bar'))
+    })
+  }
+
+  const worker = new QueueWorker()
+  worker.handleError = (err) => t.equal(err.message, 'bar', 'broken')
+  await worker.getChannel()
+}).catch(test.threw)
+
+test('get channel when channel gotten', async (t) => {
+  const worker = new QueueWorker()
+
+  let _count = 0
+  const oldCreate = connectProxy.createChannel
+  connectProxy.createChannel = async function () {
+    _count++
+    return new Promise((resolve) => {
+      connectProxy.createChannel = oldCreate
+      resolve(channelProxy)
+    })
+  }
+
+  worker.handleError = () => t.fail('no errars')
+  await worker.initialize()
+  await worker.getChannel()
+  t.equal(_count, 1, 'got channel')
+  await worker.getChannel()
+  t.equal(_count, 1, 'got channel but did not call that thing')
+  t.end()
+}).catch(test.threw)
+
+test('disconnect!', async (t) => {
+  t.plan(4)
+  const oldConnectClose = connectProxy.close
+  connectProxy.close = async function () {
+    connectProxy.close = oldConnectClose
+    t.pass('called close on connect')
+  }
+
+  const oldChannelClose = channelProxy.close
+  channelProxy.close = async function () {
+    channelProxy.close = oldChannelClose
+    t.pass('called close on channel')
+  }
+
+  const worker = new QueueWorker()
+  await worker.getChannel()
+  await worker.disconnect()
+  t.ok(!worker.channel, 'channel gone')
+  t.ok(!worker.connection, 'connection gone')
+}).catch(test.threw)
+
+test('before disconnect!', async (t) => {
+  t.plan(5)
+  const oldConnectClose = connectProxy.close
+  connectProxy.close = async function () {
+    connectProxy.close = oldConnectClose
+    t.pass('called close on connect')
+  }
+
+  const oldChannelClose = channelProxy.close
+  channelProxy.close = async function () {
+    channelProxy.close = oldChannelClose
+    t.pass('called close on channel')
+  }
+
+  const worker = new QueueWorker()
+  worker.beforeDisconnect = async () => {
+    t.pass('called before disconnect')
+  }
+  await worker.getChannel()
+  await worker.disconnect()
+  t.ok(!worker.channel, 'channel gone')
+  t.ok(!worker.connection, 'connection gone')
+}).catch(test.threw)
+
+test('before disconnect not a function!', async (t) => {
+  t.plan(4)
+  const oldConnectClose = connectProxy.close
+  connectProxy.close = async function () {
+    connectProxy.close = oldConnectClose
+    t.pass('called close on connect')
+  }
+
+  const oldChannelClose = channelProxy.close
+  channelProxy.close = async function () {
+    channelProxy.close = oldChannelClose
+    t.pass('called close on channel')
+  }
+
+  const worker = new QueueWorker()
+  worker.beforeDisconnect = true
+  await worker.getChannel()
+  await worker.disconnect()
+  t.ok(!worker.channel, 'channel gone')
+  t.ok(!worker.connection, 'connection gone')
+}).catch(test.threw)
+
+test('listen', async (t) => {
+  t.plan(1)
+  const oldConsume = channelProxy.consume
+  channelProxy.consume = async function () {
+    return new Promise((resolve) => {
+      t.pass('obey, consume')
+      channelProxy.consume = oldConsume
+      resolve()
+    })
+  }
+
+  const worker = new QueueWorker()
+  worker.queue = 'test-queue'
+  worker.messageHandler = () => {}
+  await worker.listen()
+}).catch(test.threw)
+
+test('listen, already listening', async (t) => {
+  t.plan(2)
+  const oldConsume = channelProxy.consume
+  channelProxy.consume = async function () {
+    return new Promise((resolve) => {
+      t.pass('obey, consume')
+      channelProxy.consume = oldConsume
+      resolve()
+    })
+  }
+
+  const worker = new QueueWorker()
+  worker.queue = 'test-queue'
+  worker.messageHandler = () => {}
+  await worker.listen()
+  try {
+    await worker.listen()
+  } catch (err) {
+    t.equal(err.message, 'A listener for test-queue has already been attached')
+  }
+}).catch(test.threw)
+
+test('listen, no handler', async (t) => {
+  t.plan(1)
+  const worker = new QueueWorker()
+  worker.queue = 'test-queue'
+  try {
+    await worker.listen()
+  } catch (err) {
+    t.equal(err.message, 'You must implement this.messageHandler')
+  }
+}).catch(test.threw)
+
+test('listen, no queue', async (t) => {
+  t.plan(1)
+  const worker = new QueueWorker()
+  worker.messageHandler = () => {}
+  try {
+    await worker.listen()
+  } catch (err) {
+    t.equal(err.message, 'You must specify a queue with this.queue')
+  }
 }).catch(test.threw)
