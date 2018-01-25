@@ -4,8 +4,9 @@ const proxyquire = require('proxyquire')
 
 const channelProxy = {
   async close () {},
-  async assertQueue (queue, listener) {},
-  async consume (queue, handler, opts) {}
+  async assertQueue (queue, opts) {},
+  async consume (queue, handler, opts) {},
+  sendToQueue (queue, data, opts) {}
 }
 
 const connectProxy = {
@@ -43,6 +44,61 @@ test('override host/port', async (t) => {
   const worker = new QueueWorker('localhost', 5672)
   worker.handleError = () => t.fail('should have no errors')
   await worker.initialize()
+  t.pass('zero errors')
+  t.end()
+}).catch(test.threw)
+
+test('provide override options', async (t) => {
+  const opts = {
+    assertOpts: {
+      durable: true
+    },
+    consumeOpts: {
+      exclusive: true
+    },
+    sendOpts: {
+      persistent: true
+    }
+  }
+
+  const oldConsume = channelProxy.consume
+  const oldAssert = channelProxy.assertQueue
+  const oldSend = channelProxy.sendToQueue
+
+  channelProxy.consume = async function (queue, handler, opts) {
+    channelProxy.consume = oldConsume
+    t.deepEqual(opts, {exclusive: true}, 'exclusive')
+  }
+
+  channelProxy.assertQueue = async function (queue, opts) {
+    channelProxy.assertQueue = oldAssert
+    t.deepEqual(opts, {durable: true}, 'so durable')
+  }
+
+  channelProxy.sendToQueue = function (queue, data, opts) {
+    channelProxy.sendToQueue = oldSend
+    t.deepEqual(opts, {persistent: true}, 'never the less she persisted')
+  }
+
+  class TestWorker extends QueueWorker {
+    constructor (host, port, opts) {
+      super(host, port, opts)
+      this.queue = 'test-queue'
+    }
+
+    messageHandler () {}
+
+    handleError () {
+      t.fail('should not fire')
+    }
+  }
+
+  const worker = new TestWorker('localhost', 5672, opts)
+  await worker.initialize()
+  await worker.getChannel()
+  await worker.listen()
+  await worker.sendMessage(Buffer.from('test', 'utf8'))
+
   t.pass('zero errors')
   t.end()
 }).catch(test.threw)
@@ -289,3 +345,65 @@ test('listen, no queue', async (t) => {
     t.equal(err.message, 'You must specify a queue with this.queue')
   }
 }).catch(test.threw)
+
+test('send to queue, no channel', async (t) => {
+  t.plan(2)
+  const oldSend = channelProxy.sendToQueue
+  channelProxy.sendToQueue = function (queue, msg) {
+    const data = msg.toString('utf8')
+    t.equal(data, 'test', 'un-munged data')
+    channelProxy.sendToQueue = oldSend
+  }
+
+  const worker = new QueueWorker()
+  worker.queue = 'test-queue'
+  worker.handleError = () => t.fail('should not fire')
+  await worker.sendMessage(Buffer.from('test', 'utf8'))
+  t.pass('resolved and sent')
+}).catch(test.threw)
+
+test('send to queue, no queue', async (t) => {
+  t.plan(1)
+  const worker = new QueueWorker()
+  try {
+    await worker.sendMessage(Buffer.from('test', 'utf8'))
+  } catch (err) {
+    t.equal(err.message, 'You must specify a queue with this.queue')
+  }
+}).catch(test.threw)
+
+test('send to queue, not a buffer', async (t) => {
+  t.plan(1)
+  const worker = new QueueWorker()
+  worker.queue = 'test-queue'
+  worker.handleError = () => t.fail('should not fire')
+  try {
+    await worker.sendMessage('test', {})
+  } catch (err) {
+    t.equal(err.message, 'msg must be a buffer')
+  }
+}).catch(test.threw)
+
+test('custom serialize', async (t) => {
+  const oldSend = channelProxy.sendToQueue
+  channelProxy.sendToQueue = function (queue, msg) {
+    const data = msg.toString('utf8')
+    t.equal(data, 'test', 'un-munged data')
+    channelProxy.sendToQueue = oldSend
+  }
+
+  function TestWorker () {
+    Object.assign(this, Reflect.construct(QueueWorker, arguments, TestWorker))
+    this.queue = 'test-queue'
+  }
+
+  Object.setPrototypeOf(TestWorker.prototype, QueueWorker.prototype)
+
+  TestWorker.prototype.serializeMessage = function (msg) {
+    return Buffer.from(msg, 'utf8')
+  }
+
+  const worker = new TestWorker()
+  await worker.sendMessage('test')
+  t.pass('resolved and sent')
+})

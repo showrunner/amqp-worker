@@ -27,17 +27,19 @@ worker.listen()
   .catch((err) => console.log('ERROR!', err)
 ```
 
-or, if you wanna prototype this thing:
+If you're not into ES6 Classes, you can use a function and the prototype chain
+to manage this as well. Since this is an ES6 class however, prototyping 
+requires the use of `Reflect`:
 
 ```js
 const QueueWorker = require('@scriptollc/queue-worker')
 
 function MyWorker () {
-  QueueWorker.call(this)
+  Object.assign(this, Reflect.construct(QueueWorker, arguments, MyWorker)
   this.queue = 'my-queue'
 }
 
-MyWorker.prototype = Object.create(QueueWorker.prototype)
+Reflect.setPrototypeOf(MyWorker.prototype, QueueWorker.prototype)
 
 MyWorker.prototype.messageHandler = function (msg) {
   const data = msg.content
@@ -50,16 +52,26 @@ worker.listen()
   .catch((err) => console.log('ERROR!', err)
 ```
 
+The upside to this construct is that it works for both ES6 style classes
+and traditional JS function prototypes.
 
 ## API
 
-### new QueueWorker(host?:string, port?:number):QueueWorker
+### new QueueWorker(host?:string, port?:number, opts?:object):QueueWorker
 Create a new instance of a queue worker. Optionally pass in a hostname
 and a port for the RabbitMQ server.  These may also be specified in environment
 variables:
 
 * `RABBIT_MQ_HOST` - default: `localhost`
 * `RABBIT_MQ_POST` - default: `5672`
+
+An object of objects may be passed in to provide default options for asserting
+a queue, consuming a queue or sending a message to a queue. Options may be 
+overridden or additional options may be provided at runtime
+
+* `opts.assertOpts` - default options for `this.channel.assertQueue`
+* `opts.consumeOpts` - default options for `this.channel.consume`
+* `opts.sendOpts` - default options for `this.channel.sendToQueue`
 
 All queue worker instances must implement:
 
@@ -70,6 +82,8 @@ They may as well implement:
 
 * `handleError(err:Error):undefined` - error handler (default: throws errors)
 * `beforeDisconnect():Promise` - do something before disconnection
+* `serializeMessage():Buffer` - called on the msg passed in to `sendMessage`.
+    noop by default, allows you to control how messages get changed into Buffers
 
 ### Methods
 #### async QueueWorker#initialize():Promise
@@ -84,11 +98,16 @@ exist and create a channel
 Disconnect the channel and the server, running the optional `beforeDisconnect`
 handler.
 
-#### async QueueWorker#listen(listenOpts?:object, consumeOpts?:object):Promise
+#### async QueueWorker#listen(assertOpts?:object, consumeOpts?:object):Promise
 Assert the specified queue and attach the messageHandler as a queue consumer.
 
 Will create a connection and/or a channel as necessary.  The options for `assertQueue`
 and `consume` are the same as for the amqplib functions.
+
+#### async QueueWorker#sendMessage(msg:Buffer|Any, sendOpts?object):Promise
+Send a message to the queue, using the specified options, if any.  Your message
+must either be an instance of the Buffer object, or you must have overridden
+`QueueWorker#serializeMessage` to return a Buffer.
 
 #### QueueWorker#messageHandler(msg:Object):undefined
 **This MUST be implemented!**
