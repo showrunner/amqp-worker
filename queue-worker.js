@@ -7,22 +7,22 @@ const HOST_SYM = Symbol('host')
 const LISTENING_SYM = Symbol('listening')
 const LISTEN_OPTS_SYM = Symbol('listenOpts')
 const CONSUME_OPTS_SYM = Symbol('consumeOpts')
+const SEND_OPTS_SYM = Symbol('sendOpts')
 
 class QueueWorker {
-  constructor (host, port) {
+  constructor (host, port, opts) {
+    opts = opts || {}
     this.connection = void 0
     this.channel = void 0
-    this.queue = ''
 
     this.host = host || rabbitMQHost
     this.port = port || rabbitMQPort
 
     this[HOST_SYM] = `amqp://${this.host}:${this.port}/`
     this[LISTENING_SYM] = false
-    this[LISTEN_OPTS_SYM] = {
-      durable: true
-    }
-    this[CONSUME_OPTS_SYM] = {}
+    this[LISTEN_OPTS_SYM] = opts.assertOpts || {}
+    this[CONSUME_OPTS_SYM] = opts.consumeOpts || {}
+    this[SEND_OPTS_SYM] = opts.sendOpts || {}
   }
 
   async initialize () {
@@ -67,7 +67,35 @@ class QueueWorker {
     this.connection = void 0
   }
 
-  async listen (listenOpts, consumeOpts) {
+  serializeMessage (msg) {
+    return msg
+  }
+
+  async sendMessage (msg, opts) {
+    if (!this.channel) {
+      await this.getChannel()
+    }
+
+    return new Promise((resolve, reject) => {
+      if (typeof this.queue !== 'string') {
+        const err = new Error('You must specify a queue with this.queue')
+        return reject(err)
+      }
+
+      const data = this.serializeMessage(msg)
+
+      if (!Buffer.isBuffer(data)) {
+        const err = new Error('msg must be a buffer')
+        return reject(err)
+      }
+
+      const sendOpts = Object.assign({}, this[SEND_OPTS_SYM], opts)
+      this.channel.sendToQueue(this.queue, data, sendOpts)
+      resolve()
+    })
+  }
+
+  async listen (assertOpts, consumeOpts) {
     if (this[LISTENING_SYM]) {
       throw new Error(`A listener for ${this.queue} has already been attached`)
     }
@@ -80,11 +108,11 @@ class QueueWorker {
       throw new Error('You must specify a queue with this.queue')
     }
 
-    listenOpts = Object.assign({}, this[LISTEN_OPTS_SYM], listenOpts)
+    assertOpts = Object.assign({}, this[LISTEN_OPTS_SYM], assertOpts)
     consumeOpts = Object.assign({}, this[CONSUME_OPTS_SYM], consumeOpts)
 
     await this.getChannel()
-    await this.channel.assertQueue(this.queue, listenOpts)
+    await this.channel.assertQueue(this.queue, assertOpts)
     const listening = await this.channel.consume(this.queue, this.handler, consumeOpts)
     this[LISTENING_SYM] = true
     return listening

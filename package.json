@@ -12,7 +12,14 @@
     "type": "git",
     "url": "git+https://github.com/scriptoLLC/queue-worker.git"
   },
-  "keywords": ["rabbitmq", "amqp", "queue", "queue worker", "worker", "amqplib"],
+  "keywords": [
+    "rabbitmq",
+    "amqp",
+    "queue",
+    "queue worker",
+    "worker",
+    "amqplib"
+  ],
   "author": "Todd Kennedy <todd@selfassembled.org>",
   "license": "Apache-2.0",
   "bugs": {
