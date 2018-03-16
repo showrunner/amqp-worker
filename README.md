@@ -2,13 +2,26 @@
 
 [![Build Status](https://travis-ci.org/scriptoLLC/amqp-worker.svg?branch=master)](https://travis-ci.org/scriptoLLC/amqp-worker)
 
-A class to use as a base for connecting and dealing with RabbitMQ.  Uses `async`
-and `await` so it needs Node 8. This is mostly a convienence wrapper around
-[amqplib](http://www.squaremobius.net/amqp.node/)
+A base worker class for connecting to and dealing with RabbitMQ.
+
+This is mostly a convenience wrapper around [amqplib](http://www.squaremobius.net/amqp.node/).
+
+## Install
+
+### Requirements
+
+- [Node.js](https://nodejs.org/en/download/) 8+ (for `async/await`)
+- [RabbitMQ](https://www.rabbitmq.com/)
+
+```
+npm install @scriptollc/amqp-worker
+```
 
 ## Usage
+
 ```js
 const QueueWorker = require('@scriptollc/amqp-worker')
+
 class MyWorker extends QueueWorker {
   constructor () {
     super()
@@ -17,25 +30,26 @@ class MyWorker extends QueueWorker {
 
   messageHandler (msg) {
     const data = msg.content
-    this.channel.ack(msg)
+    this.channel.ack(data)
   }
 }
 
 const worker = new MyWorker()
+
 worker.listen()
   .then(() => console.log('listening!'))
-  .catch((err) => console.log('ERROR!', err)
+  .catch((err) => console.log('ERROR!', err))
 ```
 
 If you're not into ES6 Classes, you can use a function and the prototype chain
-to manage this as well. Since this is an ES6 class however, prototyping 
+to manage this as well. Since this is an ES6 class however, prototyping
 requires the use of `Reflect`:
 
 ```js
 const QueueWorker = require('@scriptollc/amqp-worker')
 
 function MyWorker () {
-  Object.assign(this, Reflect.construct(QueueWorker, arguments, MyWorker)
+  Object.assign(this, Reflect.construct(QueueWorker, arguments, MyWorker))
   this.queue = 'my-queue'
 }
 
@@ -43,13 +57,13 @@ Reflect.setPrototypeOf(MyWorker.prototype, QueueWorker.prototype)
 
 MyWorker.prototype.messageHandler = function (msg) {
   const data = msg.content
-  this.channel.ack(msg)
+  this.channel.ack(data)
 }
 
 const worker = new MyWorker()
 worker.listen()
   .then(() => console.log('listening!'))
-  .catch((err) => console.log('ERROR!', err)
+  .catch((err) => console.log('ERROR!', err))
 ```
 
 The upside to this construct is that it works for both ES6 style classes
@@ -66,7 +80,7 @@ variables:
 * `RABBIT_MQ_POST` - default: `5672`
 
 An object of objects may be passed in to provide default options for asserting
-a queue, consuming a queue or sending a message to a queue. Options may be 
+a queue, consuming a queue or sending a message to a queue. Options may be
 overridden or additional options may be provided at runtime
 
 * `opts.assertOpts` - default options for `this.channel.assertQueue`
