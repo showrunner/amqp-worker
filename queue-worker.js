@@ -2,6 +2,8 @@ const amqp = require('amqplib')
 
 const rabbitMQHost = process.env.RABBIT_MQ_HOST || 'localhost'
 const rabbitMQPort = process.env.RABBIT_MQ_PORT || 5672
+const rabbitMQUser = process.env.RABBIT_MQ_USER || 'guest'
+const rabbitMQPass = process.env.RABBIT_MQ_PASS || 'guest'
 
 const HOST_SYM = Symbol('host')
 const LISTENING_SYM = Symbol('listening')
@@ -18,7 +20,7 @@ class QueueWorker {
     this.host = host || rabbitMQHost
     this.port = port || rabbitMQPort
 
-    this[HOST_SYM] = `amqp://${this.host}:${this.port}/`
+    this[HOST_SYM] = `amqp://${rabbitMQUser}:${rabbitMQPass}@${this.host}:${this.port}/`
     this[LISTENING_SYM] = false
     this[LISTEN_OPTS_SYM] = opts.assertOpts || {}
     this[CONSUME_OPTS_SYM] = opts.consumeOpts || {}
@@ -28,7 +30,7 @@ class QueueWorker {
   async initialize () {
     if (!this.connection) {
       try {
-        this.connection = await amqp.connect(this._host)
+        this.connection = await amqp.connect(this[HOST_SYM])
       } catch (err) {
         return this._handleError(err)
       }
