@@ -8,7 +8,7 @@ and `await` so it needs Node 8. This is mostly a convienence wrapper around
 
 ## Usage
 ```js
-const QueueWorker = require('@scriptollc/queue-worker')
+const QueueWorker = require('@scriptollc/amqp-worker')
 class MyWorker extends QueueWorker {
   constructor () {
     super()
@@ -32,7 +32,7 @@ to manage this as well. Since this is an ES6 class however, prototyping
 requires the use of `Reflect`:
 
 ```js
-const QueueWorker = require('@scriptollc/queue-worker')
+const QueueWorker = require('@scriptollc/amqp-worker')
 
 function MyWorker () {
   Object.assign(this, Reflect.construct(QueueWorker, arguments, MyWorker)
@@ -114,7 +114,7 @@ must either be an instance of the Buffer object, or you must have overridden
 Handle messages coming in from RabbitMQ.  The `msg` object is the same
 as provided for the `consume` method in [amqplib](http://www.squaremobius.net/amqp.node/channel_api.html#channelconsume):
 
-```json
+```js
 {
   content: Buffer,
   fields: Object,
