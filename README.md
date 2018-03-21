@@ -123,6 +123,9 @@ Send a message to the queue, using the specified options, if any.  Your message
 must either be an instance of the Buffer object, or you must have overridden
 `QueueWorker#serializeMessage` to return a Buffer.
 
+You may use a different channel to send a message to a queue by passing in a `channel`
+key on the `sendOpts` object.
+
 #### QueueWorker#messageHandler(msg:Object):undefined
 **This MUST be implemented!**
 Handle messages coming in from RabbitMQ.  The `msg` object is the same

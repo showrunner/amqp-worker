@@ -73,10 +73,21 @@ class QueueWorker {
     return msg
   }
 
+  async messageHandler (msg) {
+    throw new Error('You must implement this.messageHandler')
+  }
+
   async sendMessage (msg, opts) {
-    if (!this.channel) {
+    opts = opts || {}
+    if (!this.channel && !opts.channel) {
       await this.getChannel()
     }
+
+    const channel = opts.channel || this.channel
+    const queue = opts.queue || this.queue
+    const sendOpts = Object.assign({}, opts)
+    delete sendOpts.queue
+    delete sendOpts.channel
 
     return new Promise((resolve, reject) => {
       if (typeof this.queue !== 'string') {
@@ -91,8 +102,8 @@ class QueueWorker {
         return reject(err)
       }
 
-      const sendOpts = Object.assign({}, this[SEND_OPTS_SYM], opts)
-      this.channel.sendToQueue(this.queue, data, sendOpts)
+      const options = Object.assign({}, this[SEND_OPTS_SYM], sendOpts)
+      channel.sendToQueue(queue, data, options)
       resolve()
     })
   }
@@ -100,10 +111,6 @@ class QueueWorker {
   async listen (assertOpts, consumeOpts) {
     if (this[LISTENING_SYM]) {
       throw new Error(`A listener for ${this.queue} has already been attached`)
-    }
-
-    if (typeof this.messageHandler !== 'function') {
-      throw new Error('You must implement this.messageHandler')
     }
 
     if (typeof this.queue !== 'string' || this.queue.length < 1) {
@@ -115,7 +122,7 @@ class QueueWorker {
 
     await this.getChannel()
     await this.channel.assertQueue(this.queue, assertOpts)
-    const listening = await this.channel.consume(this.queue, this.handler, consumeOpts)
+    const listening = await this.channel.consume(this.queue, this.messageHandler, consumeOpts)
     this[LISTENING_SYM] = true
     return listening
   }
