@@ -330,6 +330,7 @@ test('listen, no handler', async (t) => {
   worker.queue = 'test-queue'
   try {
     await worker.listen()
+    await worker.messageHandler()
   } catch (err) {
     t.equal(err.message, 'You must implement this.messageHandler')
   }
