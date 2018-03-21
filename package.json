@@ -4,8 +4,7 @@
   "description": "Class for creating AMQP connections",
   "main": "amqp-worker.js",
   "scripts": {
-    "test": "standard && npm run dep && tap --100 test/*.spec.js",
-    "coverage": "standard && npm run dep && tap --100 --cov --coverage-report=lcov test/*.spec.js test/*.integration.js",
+    "test": "standard && npm run dep && tap --100 --cov --coverage-report=lcov test/*.spec.js test/*.integration.js",
     "dep": "dependency-check . && dependency-check . --unused --no-dev"
   },
   "repository": {
