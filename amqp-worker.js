@@ -5,12 +5,6 @@ const rabbitMQPort = process.env.RABBIT_MQ_PORT || 5672
 const rabbitMQUser = process.env.RABBIT_MQ_USER || 'guest'
 const rabbitMQPass = process.env.RABBIT_MQ_PASS || 'guest'
 
-const HOST_SYM = Symbol('host')
-const LISTENING_SYM = Symbol('listening')
-const LISTEN_OPTS_SYM = Symbol('listenOpts')
-const CONSUME_OPTS_SYM = Symbol('consumeOpts')
-const SEND_OPTS_SYM = Symbol('sendOpts')
-
 class QueueWorker {
   constructor (host, port, opts) {
     opts = opts || {}
@@ -20,17 +14,17 @@ class QueueWorker {
     this.host = host || rabbitMQHost
     this.port = port || rabbitMQPort
 
-    this[HOST_SYM] = `amqp://${rabbitMQUser}:${rabbitMQPass}@${this.host}:${this.port}/`
-    this[LISTENING_SYM] = false
-    this[LISTEN_OPTS_SYM] = opts.assertOpts || {}
-    this[CONSUME_OPTS_SYM] = opts.consumeOpts || {}
-    this[SEND_OPTS_SYM] = opts.sendOpts || {}
+    this.hostURL = `amqp://${rabbitMQUser}:${rabbitMQPass}@${this.host}:${this.port}/`
+    this.listening = false
+    this.assertOpts = opts.assertOpts || {}
+    this.consumeOpts = opts.consumeOpts || {}
+    this.sendOpts = opts.sendOpts || {}
   }
 
   async initialize () {
     if (!this.connection) {
       try {
-        this.connection = await amqp.connect(this[HOST_SYM])
+        this.connection = await amqp.connect(this.hostURL)
       } catch (err) {
         return this._handleError(err)
       }
@@ -102,14 +96,14 @@ class QueueWorker {
         return reject(err)
       }
 
-      const options = Object.assign({}, this[SEND_OPTS_SYM], sendOpts)
+      const options = Object.assign({}, this.sendOpts, sendOpts)
       channel.sendToQueue(queue, data, options)
       resolve()
     })
   }
 
   async listen (assertOpts, consumeOpts) {
-    if (this[LISTENING_SYM]) {
+    if (this.listening) {
       throw new Error(`A listener for ${this.queue} has already been attached`)
     }
 
@@ -117,14 +111,14 @@ class QueueWorker {
       throw new Error('You must specify a queue with this.queue')
     }
 
-    assertOpts = Object.assign({}, this[LISTEN_OPTS_SYM], assertOpts)
-    consumeOpts = Object.assign({}, this[CONSUME_OPTS_SYM], consumeOpts)
+    assertOpts = Object.assign({}, this.assertOpts, assertOpts)
+    consumeOpts = Object.assign({}, this.consumeOpts, consumeOpts)
 
     await this.getChannel()
     await this.channel.assertQueue(this.queue, assertOpts)
-    const listening = await this.channel.consume(this.queue, this.messageHandler, consumeOpts)
-    this[LISTENING_SYM] = true
-    return listening
+    const consumer = await this.channel.consume(this.queue, this.messageHandler, consumeOpts)
+    this.listening = true
+    return consumer
   }
 
   _handleError (err) {
