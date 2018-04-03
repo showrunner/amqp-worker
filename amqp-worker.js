@@ -116,7 +116,7 @@ class QueueWorker {
 
     await this.getChannel()
     await this.channel.assertQueue(this.queue, assertOpts)
-    const consumer = await this.channel.consume(this.queue, this.messageHandler, consumeOpts)
+    const consumer = await this.channel.consume(this.queue, (msg) => this.messageHandler(msg), consumeOpts)
     this.listening = true
     return consumer
   }
