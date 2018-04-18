@@ -116,9 +116,10 @@ class QueueWorker {
 
     await this.getChannel()
     await this.channel.assertQueue(this.queue, assertOpts)
-    const consumer = await this.channel.consume(this.queue, (msg) => this.messageHandler(msg), consumeOpts)
+    const {consumerTag} = await this.channel.consume(this.queue, (msg) => this.messageHandler(msg), consumeOpts)
+    this.consumerTag = consumerTag
     this.listening = true
-    return consumer
+    return consumerTag
   }
 
   _handleError (err) {
