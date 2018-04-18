@@ -4,7 +4,7 @@ const crypto = require('crypto')
 const QueueWorker = require('../')
 
 test('send and listen', (t) => {
-  t.plan(1)
+  t.plan(2)
   return new Promise(async (resolve, reject) => {
     const worker = new QueueWorker()
     const queue = crypto.randomBytes(4).toString('hex')
@@ -22,6 +22,7 @@ test('send and listen', (t) => {
     }
 
     await worker.listen()
+    t.ok(worker.consumerTag, 'consumer tag is there')
     try {
       const msg = Buffer.from('hello world')
       await worker.sendMessage(msg)

@@ -5,7 +5,9 @@ const proxyquire = require('proxyquire')
 const channelProxy = {
   async close () {},
   async assertQueue (queue, opts) {},
-  async consume (queue, handler, opts) {},
+  async consume (queue, handler, opts) {
+    return {consumerTag: 'foo'}
+  },
   sendToQueue (queue, data, opts) {}
 }
 
@@ -68,6 +70,7 @@ test('provide override options', async (t) => {
   channelProxy.consume = async function (queue, handler, opts) {
     channelProxy.consume = oldConsume
     t.deepEqual(opts, {exclusive: true}, 'exclusive')
+    return {consumerTag: 'foo'}
   }
 
   channelProxy.assertQueue = async function (queue, opts) {
@@ -185,10 +188,8 @@ test('get channel with an error', async (t) => {
 
   const oldCreate = connectProxy.createChannel
   connectProxy.createChannel = async function () {
-    return new Promise((resolve, reject) => {
-      connectProxy.createChannel = oldCreate
-      reject(new Error('bar'))
-    })
+    connectProxy.createChannel = oldCreate
+    throw new Error('bar')
   }
 
   const worker = new QueueWorker()
@@ -286,31 +287,28 @@ test('before disconnect not a function!', async (t) => {
 }).catch(test.threw)
 
 test('listen', async (t) => {
-  t.plan(1)
+  t.plan(2)
   const oldConsume = channelProxy.consume
   channelProxy.consume = async function () {
-    return new Promise((resolve) => {
-      t.pass('obey, consume')
-      channelProxy.consume = oldConsume
-      resolve()
-    })
+    t.pass('obey, consume')
+    channelProxy.consume = oldConsume
+    return {consumerTag: 'foo'}
   }
 
   const worker = new QueueWorker()
   worker.queue = 'test-queue'
   worker.messageHandler = () => {}
   await worker.listen()
+  t.equal(worker.consumerTag, 'foo', 'tag set')
 }).catch(test.threw)
 
 test('listen, already listening', async (t) => {
   t.plan(2)
   const oldConsume = channelProxy.consume
   channelProxy.consume = async function () {
-    return new Promise((resolve) => {
-      t.pass('obey, consume')
-      channelProxy.consume = oldConsume
-      resolve()
-    })
+    t.pass('obey, consume')
+    channelProxy.consume = oldConsume
+    return {consumerTag: 'foo'}
   }
 
   const worker = new QueueWorker()
