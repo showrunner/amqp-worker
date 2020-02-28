@@ -1,6 +1,6 @@
 # amqp-worker
 
-[![Build Status](https://travis-ci.org/scriptoLLC/amqp-worker.svg?branch=master)](https://travis-ci.org/scriptoLLC/amqp-worker)
+[![Build Status](https://travis-ci.org/showrunner/amqp-worker.svg?branch=master)](https://travis-ci.org/showrunner/amqp-worker)
 
 A base worker class for connecting to and dealing with RabbitMQ.
 
@@ -14,13 +14,13 @@ This is mostly a convenience wrapper around [amqplib](http://www.squaremobius.ne
 - [RabbitMQ](https://www.rabbitmq.com/)
 
 ```
-npm install @scriptollc/amqp-worker
+npm install @showrunner/amqp-worker
 ```
 
 ## Usage
 
 ```js
-const QueueWorker = require('@scriptollc/amqp-worker')
+const QueueWorker = require('@showrunner/amqp-worker')
 
 class MyWorker extends QueueWorker {
   constructor () {
@@ -46,7 +46,7 @@ to manage this as well. Since this is an ES6 class however, prototyping
 requires the use of `Reflect`:
 
 ```js
-const QueueWorker = require('@scriptollc/amqp-worker')
+const QueueWorker = require('@showrunner/amqp-worker')
 
 function MyWorker () {
   Object.assign(this, Reflect.construct(QueueWorker, arguments, MyWorker))
