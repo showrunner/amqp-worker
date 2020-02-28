@@ -1,5 +1,5 @@
 {
-  "name": "@scriptollc/amqp-worker",
+  "name": "@showrunner/amqp-worker",
   "version": "1.3.2",
   "description": "Class for creating AMQP connections",
   "main": "amqp-worker.js",
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/scriptoLLC/amqp-worker.git"
+    "url": "git+https://github.com/showrunner/amqp-worker.git"
   },
   "keywords": [
     "rabbitmq",
@@ -22,9 +22,9 @@
   "author": "Todd Kennedy <todd@selfassembled.org>",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/scriptoLLC/amqp-worker/issues"
+    "url": "https://github.com/showrunner/amqp-worker/issues"
   },
-  "homepage": "https://github.com/scriptoLLC/amqp-worker#readme",
+  "homepage": "https://github.com/showrunner/amqp-worker#readme",
   "dependencies": {
     "amqplib": "^0.5.2"
   },
