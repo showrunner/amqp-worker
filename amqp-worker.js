@@ -2,8 +2,8 @@ const amqp = require('amqplib')
 
 const rabbitMQHost = process.env.RABBIT_MQ_HOST || 'localhost'
 const rabbitMQPort = process.env.RABBIT_MQ_PORT || 5672
-const rabbitMQUser = process.env.RABBIT_MQ_USER || 'guest'
-const rabbitMQPass = process.env.RABBIT_MQ_PASS || 'guest'
+const rabbitMQUser = process.env.RABBIT_MQ_USER || 'showrunner'
+const rabbitMQPass = process.env.RABBIT_MQ_PASS || 'showrunner'
 
 class QueueWorker {
   constructor (host, port, opts) {
