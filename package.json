@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/showrunner/amqp-worker#readme",
   "dependencies": {
-    "amqplib": "^0.5.2"
+    "amqplib": "^0.8.0"
   },
   "devDependencies": {
     "dependency-check": "^3.0.0",
