@@ -4,6 +4,7 @@ const rabbitMQHost = process.env.RABBIT_MQ_HOST || 'localhost'
 const rabbitMQPort = process.env.RABBIT_MQ_PORT || 5672
 const rabbitMQUser = process.env.RABBIT_MQ_USER || 'showrunner'
 const rabbitMQPass = process.env.RABBIT_MQ_PASS || 'showrunner'
+const rabbitMQScheme = process.env.RABBIT_MQ_SCHEME || 'amqp'
 
 class QueueWorker {
   constructor (host, port, opts) {
@@ -14,7 +15,7 @@ class QueueWorker {
     this.host = host || rabbitMQHost
     this.port = port || rabbitMQPort
 
-    this.hostURL = `amqp://${rabbitMQUser}:${rabbitMQPass}@${this.host}:${this.port}/`
+    this.hostURL = `${rabbitMQScheme}://${rabbitMQUser}:${rabbitMQPass}@${this.host}:${this.port}/`
     this.listening = false
     this.assertOpts = opts.assertOpts || {}
     this.consumeOpts = opts.consumeOpts || {}

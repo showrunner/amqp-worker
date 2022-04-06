@@ -1,6 +1,6 @@
 {
   "name": "@showrunner/amqp-worker",
-  "version": "2.0.1",
+  "version": "2.0.2-beta.0",
   "description": "Class for creating AMQP connections",
   "main": "amqp-worker.js",
   "scripts": {
